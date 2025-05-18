@@ -76,7 +76,7 @@ export function Overview() {
 
     // Calcular ventas diarias
     const dailySummary = sales.reduce<Record<string, number>>((acc, sale) => {
-      const date = new Date(sale.date).toLocaleDateString();
+      const date = new Date(sale.date).toISOString().split('T')[0];
       acc[date] = (acc[date] || 0) + sale.total;
       return acc;
     }, {});

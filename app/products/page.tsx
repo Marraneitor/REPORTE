@@ -12,6 +12,7 @@ import { ProductForm } from "@/components/products/product-form";
 import { toast } from "sonner";
 import { getStoredData, setStoredData, STORAGE_KEYS } from "@/lib/local-storage";
 import { PRODUCTS } from "@/lib/data/products";
+import { INGREDIENTS } from "@/lib/data/ingredients";
 import type { Product } from "@/lib/data/products";
 
 export default function ProductsPage() {
