@@ -24,13 +24,13 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={inter.className}>
         <I18nProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
+          <SalesProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="light"
+              enableSystem
+              disableTransitionOnChange
           >
-            <SalesProvider>
               <div className="relative flex min-h-screen">
                 <Sidebar />
                 <div className="flex-1 flex flex-col">
@@ -38,8 +38,8 @@ export default function RootLayout({
                 </div>
                 <Toaster />
               </div>
-            </SalesProvider>
           </ThemeProvider>
+          </SalesProvider>
         </I18nProvider>
       </body>
     </html>

@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Edit, Plus, Search, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ProductForm } from "@/components/products/product-form";
-import { PRODUCTS } from "@/lib/data/products";
-import { INGREDIENTS } from "@/lib/data/ingredients";
+import { toast } from "sonner";
 import { getStoredData, setStoredData, STORAGE_KEYS } from "@/lib/local-storage";
+import { PRODUCTS } from "@/lib/data/products";
+import type { Product } from "@/lib/data/products";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState(PRODUCTS);
