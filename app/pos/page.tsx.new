@@ -1,0 +1,186 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Minus, Plus, Search, ShoppingCart, Trash, User, Menu, Plus as PlusIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { CustomerCard } from "@/components/pos/customer-card";
+import { ProductCard } from "@/components/pos/product-card";
+import { QuickCustomerForm } from "@/components/pos/quick-customer-form";
+import { useTranslation } from "@/lib/i18n/i18n-context";
+import { PRODUCTS, Product } from "@/lib/data/products";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { getStoredData, setStoredData, STORAGE_KEYS } from "@/lib/local-storage";
+
+type Customer = {
+  id: number;
+  name: string;
+  phone: string;
+  address: string;
+  points: number;
+};
+
+type CartItem = {
+  product: Product;
+  quantity: number;
+};
+
+const CATEGORIES = [
+  { id: "all", label: "Todos" },
+  { id: "Entradas", label: "Entradas" },
+  { id: "Hamburguesas", label: "Hamburguesas" },
+  { id: "Hot Dogs", label: "Hot Dogs" },
+  { id: "Complementos", label: "Complementos" },
+];
+
+export default function POSPage() {
+  const { t } = useTranslation();
+  const [cart, setCart] = useState<CartItem[]>(() => getStoredData(STORAGE_KEYS.CART, []));
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() => getStoredData(STORAGE_KEYS.SELECTED_CUSTOMER, null));
+  const [searchTerm, setSearchTerm] = useState("");
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [discount, setDiscount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
+  const [processing, setProcessing] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>(() => getStoredData(STORAGE_KEYS.CUSTOMERS, []));
+  const [cashReceived, setCashReceived] = useState<number>(0);
+
+  // Guardar cambios en el carrito
+  useEffect(() => {
+    setStoredData(STORAGE_KEYS.CART, cart);
+  }, [cart]);
+
+  // Guardar cambios en los clientes
+  useEffect(() => {
+    setStoredData(STORAGE_KEYS.CUSTOMERS, customers);
+  }, [customers]);
+
+  // Guardar cliente seleccionado
+  useEffect(() => {
+    setStoredData(STORAGE_KEYS.SELECTED_CUSTOMER, selectedCustomer);
+  }, [selectedCustomer]);
+
+  const filteredProducts = PRODUCTS.filter((product) => {
+    const matchesSearch = product.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || product.categoria === selectedCategory;
+    return matchesSearch && matchesCategory && product.disponible;
+  });
+
+  const filteredCustomers = customers.filter((customer) =>
+    customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.phone.includes(customerSearchTerm)
+  );
+
+  const addToCart = (product: Product) => {
+    setCart(currentCart => {
+      const existingItem = currentCart.find(item => item.product.nombre === product.nombre);
+      if (existingItem) {
+        return currentCart.map(item =>
+          item.product.nombre === product.nombre
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...currentCart, { product, quantity: 1 }];
+    });
+    toast.success(t("pos.productAdded") || "Producto agregado al carrito");
+  };
+
+  const removeFromCart = (productName: string) => {
+    setCart(cart.filter(item => item.product.nombre !== productName));
+  };
+
+  const updateQuantity = (productName: string, newQuantity: number) => {
+    if (newQuantity < 1) {
+      removeFromCart(productName);
+      return;
+    }
+    setCart(cart.map(item =>
+      item.product.nombre === productName
+        ? { ...item, quantity: newQuantity }
+        : item
+    ));
+  };
+
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerSearchTerm("");
+  };
+
+  const handleNewCustomer = (data: { name: string; phone: string; address: string }) => {
+    const newCustomer: Customer = {
+      id: Date.now(),
+      ...data,
+      points: 0
+    };
+    setCustomers(prevCustomers => [...prevCustomers, newCustomer]);
+    setSelectedCustomer(newCustomer);
+    setShowNewCustomerForm(false);
+    toast.success(t("customers.addedSuccess") || "Cliente agregado con éxito");
+  };
+
+  const subtotal = cart.reduce((sum, item) => sum + item.product.precioVenta * item.quantity, 0);
+  const discountAmount = (subtotal * discount) / 100;
+  const total = subtotal - discountAmount;
+
+  const handleCompleteSale = async () => {
+    if (cart.length === 0) {
+      toast.error(t("pos.emptyCartError") || "El carrito está vacío");
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const sale = {
+        id: Date.now(),
+        date: new Date().toISOString(),
+        customer: selectedCustomer ? {
+          id: selectedCustomer.id,
+          name: selectedCustomer.name
+        } : null,
+        items: cart.map(item => ({
+          id: Date.now(),
+          name: item.product.nombre,
+          price: item.product.precioVenta,
+          quantity: item.quantity,
+          total: item.product.precioVenta * item.quantity
+        })),
+        subtotal,
+        discount: discountAmount,
+        total,
+        paymentMethod,
+        cashReceived: paymentMethod === "cash" ? cashReceived : undefined,
+        change: paymentMethod === "cash" ? cashReceived - total : undefined
+      };
+
+      // Aquí irían las llamadas al backend
+      console.log('Procesando venta:', sale);
+
+      // Limpiar el estado pero mantener los clientes
+      setCart([]);
+      setSelectedCustomer(null);
+      setDiscount(0);
+      setPaymentMethod("cash");
+      setCashReceived(0);
+      toast.success(t("pos.saleComplete") || "Venta completada con éxito");
+    } catch (error) {
+      console.error('Error al procesar la venta:', error);
+      toast.error(t("pos.saleError") || "Error al procesar la venta");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ... resto del código original igual
