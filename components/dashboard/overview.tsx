@@ -61,7 +61,8 @@ export function Overview() {
           };
         }
         acc[item.name].quantity += item.quantity;
-        acc[item.name].total += item.total || (item.price * item.quantity);
+        // Calculamos el total multiplicando precio por cantidad
+        acc[item.name].total += item.price * item.quantity;
       });
       return acc;
     }, {});
